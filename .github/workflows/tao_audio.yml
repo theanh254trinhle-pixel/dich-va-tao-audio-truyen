@@ -1,0 +1,62 @@
+name: Tao Audio Truyen Hang Loat
+
+on:
+  workflow_dispatch:
+    inputs:
+      voice_choice:
+        description: 'Chọn giọng đọc'
+        required: true
+        default: 'vi-VN-HoaiMyNeural'
+        type: choice
+        options:
+          - 'vi-VN-HoaiMyNeural'
+          - 'vi-VN-NamMinhNeural'
+      speed_choice:
+        description: 'Chọn tốc độ đọc'
+        required: true
+        default: '+0%'
+        type: choice
+        options:
+          - '+0%'    # Tốc độ chuẩn 1.0x
+          - '+25%'   # Tốc độ 1.25x
+          - '+50%'   # Tốc độ 1.5x
+          - '+100%'  # Tốc độ 2.0x
+
+jobs:
+  convert-tts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Lấy mã nguồn Repo
+        uses: actions/checkout@v4
+
+      - name: Cài đặt Python và edge-tts
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Cài đặt thư viện TTS
+        run: |
+          pip install edge-tts
+
+      - name: Chuyển toàn bộ file .txt thành .mp3
+        run: |
+          mkdir -p output_audio
+          
+          # Quét tất cả file có đuôi .txt và tạo audio hàng loạt
+          shopt -s nullglob
+          for file in *.txt; do
+            if [ -f "$file" ]; then
+              filename="${file%.*}"
+              echo "----------------------------------------"
+              echo "Đang xử lý file: $file"
+              echo "Giọng đọc: ${{ inputs.voice_choice }} | Tốc độ: ${{ inputs.speed_choice }}"
+              
+              edge-tts --voice "${{ inputs.voice_choice }}" --rate="${{ inputs.speed_choice }}" --file "$file" --write-media "output_audio/${filename}.mp3"
+            fi
+          done
+
+      - name: Tải toàn bộ file Audio về máy (.zip)
+        uses: actions/upload-artifact@v4
+        with:
+          name: danh-sach-audio-mp3
+          path: output_audio/
