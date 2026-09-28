@@ -1,0 +1,57 @@
+name: 1. Dich Truyen Trung Sang Viet (Gemini)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  translate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Lấy mã nguồn
+        uses: actions/checkout@v4
+
+      - name: Cài đặt Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Cài đặt thư viện Google GenAI
+        run: |
+          pip install google-genai
+
+      - name: Tự động dịch tất cả file .txt từ Trung sang Việt
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          mkdir -p output_dich
+          
+          python - << 'EOF'
+          import os
+          from google import genai
+
+          client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+
+          for file_name in os.listdir("."):
+              if file_name.endswith(".txt") and not file_name.startswith("dich_"):
+                  print(f"Đang dịch file: {file_name}")
+                  with open(file_name, "r", encoding="utf-8") as f:
+                      content = f.read()
+                  
+                  prompt = f"Bạn là một dịch giả chuyên nghiệp. Hãy dịch đoạn tiểu thuyết tiếng Trung sau đây sang tiếng Việt mượt mà, văn phong truyện chữ tự nhiên, đúng ngữ cảnh:\n\n{content}"
+                  
+                  response = client.models.generate_content(
+                      model='gemini-2.5-flash',
+                      contents=prompt,
+                  )
+                  
+                  output_path = os.path.join("output_dich", f"dich_{file_name}")
+                  with open(output_path, "w", encoding="utf-8") as f:
+                      f.write(response.text)
+                  print(f"Hoàn thành: {output_path}")
+          EOF
+
+      - name: Tải file đã dịch về (.zip)
+        uses: actions/upload-artifact@v4
+        with:
+          name: truyen-da-dich
+          path: output_dich/
